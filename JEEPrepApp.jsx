@@ -1419,7 +1419,139 @@ function NotesPage() {
 
   const handlePrint = () => {
     if (!activeConcept) return;
-    window.print();
+    const c = activeConcept;
+    const color = col;
+    const chName = chapters[noteChapterIdx].name;
+
+    // Build mind-map SVG as string
+    const palette = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899"];
+    const angles = [0, 60, 120, 180, 240, 300];
+    const branches = c.branches || [];
+    const W = 700, H = 420, cx = W/2, cy = H/2, R = 155;
+    const branchSVG = angles.map((deg, i) => {
+      const rad = (deg * Math.PI) / 180;
+      const bx = cx + R * Math.cos(rad);
+      const by = cy + R * Math.sin(rad);
+      const bcol = palette[i % palette.length];
+      const label = (branches[i] || "").slice(0, 22);
+      return `<line x1="${cx}" y1="${cy}" x2="${bx}" y2="${by}" stroke="${bcol}" stroke-width="2.5" stroke-dasharray="6,4" opacity="0.6"/>
+        <ellipse cx="${bx}" cy="${by}" rx="62" ry="26" fill="${bcol}" opacity="0.13" stroke="${bcol}" stroke-width="1.5"/>
+        <text x="${bx}" y="${by}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="600" fill="${bcol}">${label}</text>`;
+    }).join("");
+    const mindmapSVG = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:680px;display:block;margin:0 auto;">
+      <rect width="${W}" height="${H}" fill="#f8fafc" rx="14"/>
+      ${branchSVG}
+      <ellipse cx="${cx}" cy="${cy}" rx="72" ry="34" fill="${color}"/>
+      <text x="${cx}" y="${cy-7}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="800" fill="#fff">${c.name.slice(0,22)}</text>
+      <text x="${cx}" y="${cy+11}" text-anchor="middle" dominant-baseline="middle" font-size="10" fill="#fff" opacity="0.85">Quick Revision</text>
+    </svg>`;
+
+    const formulas = (c.formulas || []);
+    const trick = c.t || "";
+    const mistake = c.m || "";
+
+    const win = window.open("", "_blank", "width=900,height=700");
+    win.document.write(`<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8"/>
+<title>${c.name} — JEE Notes</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',system-ui,sans-serif;background:#fff;color:#1e293b;}
+  .page{padding:28px 32px;min-height:267mm;page-break-after:always;border-bottom:2px dashed #e2e8f0;}
+  .page:last-child{page-break-after:avoid;border-bottom:none;}
+  @page{margin:12mm;size:A4;}
+  @media print{.page{border-bottom:none;}}
+  .hdr{margin-bottom:18px;}
+  .hdr-sub{font-size:12px;color:#64748b;}
+  .hdr-title{font-size:24px;font-weight:800;color:${color};}
+  .page-label{font-size:11px;color:#94a3b8;float:right;margin-top:4px;}
+  .section-label{font-size:11px;font-weight:700;color:#64748b;letter-spacing:.5px;text-transform:uppercase;margin:16px 0 8px;}
+  .formula-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;}
+  .f-box{background:#f8fafc;border-left:4px solid ${color};border-radius:7px;padding:10px 14px;font-size:13px;font-weight:700;font-family:monospace;color:#1e293b;}
+  .trick-box{background:#fffbeb;border:1.5px solid #fde68a;border-radius:9px;padding:12px 16px;font-size:13px;color:#92400e;line-height:1.7;margin-bottom:14px;}
+  .mistake-box{background:#fef2f2;border:1.5px solid #fecaca;border-radius:9px;padding:12px 16px;font-size:13px;color:#991b1b;line-height:1.7;margin-bottom:14px;}
+  .anchor-box{background:#faf5ff;border:1.5px solid #ddd6fe;border-radius:9px;padding:12px 16px;font-size:14px;color:#6d28d9;font-weight:700;}
+  .mem-list{list-style:none;padding:0;}
+  .mem-list li{font-size:13px;padding:8px 0;border-bottom:1px dashed #e2e8f0;line-height:1.6;}
+  .mem-list li:last-child{border-bottom:none;}
+  .jee-tip{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:9px;padding:12px 16px;margin-top:16px;}
+  .jee-tip-label{font-size:11px;font-weight:700;color:${color};margin-bottom:4px;}
+  .jee-tip-text{font-size:12px;color:#1e40af;line-height:1.6;}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;}
+  .chip{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;font-family:monospace;}
+  .chip-primary{background:${color};color:#fff;}
+  .chip-secondary{background:#f1f5f9;color:#1e293b;}
+  .print-btn{position:fixed;bottom:24px;right:24px;padding:12px 24px;background:${color};color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.2);}
+  @media print{.print-btn{display:none;}}
+</style>
+</head><body>
+
+<!-- PAGE 1: MIND MAP -->
+<div class="page">
+  <div class="hdr">
+    <div class="hdr-sub">${noteSubject} &nbsp;·&nbsp; ${chName}</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;">
+      <div class="hdr-title">${c.name}</div>
+      <div class="page-label">Page 1 of 3 — Mind Map</div>
+    </div>
+  </div>
+  <div style="margin:24px 0;">${mindmapSVG}</div>
+  <div style="margin-top:24px;display:flex;flex-wrap:wrap;gap:8px;">
+    ${formulas.map(f => `<span style="background:${color}18;border:1.5px solid ${color}44;border-radius:8px;padding:6px 14px;font-family:monospace;font-size:13px;font-weight:700;color:${color};">${f}</span>`).join("")}
+  </div>
+</div>
+
+<!-- PAGE 2: REFERENCE SHEET -->
+<div class="page">
+  <div class="hdr">
+    <div class="hdr-sub">${noteSubject} &nbsp;·&nbsp; ${chName}</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;">
+      <div class="hdr-title">${c.name}</div>
+      <div class="page-label">Page 2 of 3 — Reference Sheet</div>
+    </div>
+  </div>
+  <div class="section-label">📐 Key Formulas</div>
+  <div class="formula-grid">
+    ${formulas.map(f => `<div class="f-box">${f}</div>`).join("")}
+  </div>
+  <div class="section-label">💡 Revision Trick / Mnemonic</div>
+  <div class="trick-box">${trick}</div>
+  <div class="section-label">⚠️ Common Mistake to Avoid</div>
+  <div class="mistake-box">❌ ${mistake}</div>
+  <div class="section-label">🧠 If You Remember One Thing...</div>
+  <div class="anchor-box">${formulas[0] || c.name}</div>
+</div>
+
+<!-- PAGE 3: MEMORY PAGE -->
+<div class="page">
+  <div class="hdr">
+    <div class="hdr-sub">${noteSubject} &nbsp;·&nbsp; ${chName}</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;">
+      <div class="hdr-title">${c.name}</div>
+      <div class="page-label">Page 3 of 3 — Memory Anchors</div>
+    </div>
+  </div>
+  <div class="section-label">⚡ 60-Second Revision</div>
+  <ul class="mem-list">
+    ${[...formulas, "💡 " + trick, "⚠️ Avoid: " + mistake].slice(0, 5).map(b => `<li>${b}</li>`).join("")}
+  </ul>
+  <div class="jee-tip">
+    <div class="jee-tip-label">🎯 JEE Advanced Strategy</div>
+    <div class="jee-tip-text">For <strong>${c.name}</strong>: Check all conditions before applying formulas.
+    Integer-type questions often test edge cases. Multi-correct answers may combine
+    this concept with other <em>${chName}</em> fundamentals.</div>
+  </div>
+  <div class="section-label" style="margin-top:18px;">📇 Formula Flash Cards</div>
+  <div class="chips">
+    ${formulas.map((f, i) => `<span class="chip ${i === 0 ? "chip-primary" : "chip-secondary"}">${f}</span>`).join("")}
+  </div>
+</div>
+
+<button class="print-btn" onclick="window.print()">🖨️ Save as PDF</button>
+</body></html>`);
+    win.document.close();
   };
 
   return (
